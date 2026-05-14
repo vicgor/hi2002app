@@ -1,0 +1,59 @@
+name: Release — Build & Publish .exe
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-windows:
+    name: Build .exe (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Build .exe with PyInstaller
+        run: >
+          pyinstaller
+          --name "HI2002App"
+          --onefile
+          --windowed
+          --icon "hi2002app/resources/icons/app.ico"
+          --add-data "hi2002app/resources;hi2002app/resources"
+          --add-data "hi2002app/i18n;hi2002app/i18n"
+          hi2002app/__main__.py
+
+      - name: Rename artifact
+        shell: bash
+        run: mv dist/HI2002App.exe dist/HI2002App-${{ steps.version.outputs.VERSION }}.exe
+
+      - name: Upload .exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HI2002App-windows
+          path: dist/HI2002App-*.exe
+
+      - name: Create GitHub Release and attach .exe
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/HI2002App-*.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

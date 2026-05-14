@@ -5,8 +5,8 @@ from __future__ import annotations
 import csv
 import json
 import logging
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from hi2002app.models.measurement import Measurement
 
@@ -69,7 +69,11 @@ class DataExporter:
 
         for row_idx, m in enumerate(measurements, start=2):
             for col_idx, value in enumerate(m.to_dict().values(), start=1):
-                ws.cell(row=row_idx, column=col_idx, value=str(value) if isinstance(value, bool) else value)  # type: ignore[union-attr]
+                ws.cell(  # type: ignore[union-attr]
+                    row=row_idx,
+                    column=col_idx,
+                    value=str(value) if isinstance(value, bool) else value,
+                )
 
         wb.save(path)
         logger.info("Exported %d rows to Excel: %s", len(measurements), path)
@@ -120,7 +124,13 @@ class DataExporter:
             from reportlab.lib.pagesizes import A4
             from reportlab.lib.styles import getSampleStyleSheet
             from reportlab.lib.units import cm
-            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+            from reportlab.platypus import (
+                Paragraph,
+                SimpleDocTemplate,
+                Spacer,
+                Table,
+                TableStyle,
+            )
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("reportlab is required for PDF export") from exc
 
@@ -135,8 +145,10 @@ class DataExporter:
             story.append(Paragraph("No data recorded.", styles["Normal"]))
         else:
             headers = list(measurements[0].to_dict().keys())
-            table_data = [headers] + [[str(v) for v in m.to_dict().values()] for m in measurements]
-
+            table_data = [
+                headers,
+                *[[str(v) for v in m.to_dict().values()] for m in measurements],
+            ]
             col_width = (A4[0] - 4 * cm) / len(headers)
             table = Table(table_data, colWidths=[col_width] * len(headers))
             table.setStyle(
@@ -145,7 +157,12 @@ class DataExporter:
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("FONTSIZE", (0, 0), (-1, -1), 7),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#EBF5FB")]),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.white, colors.HexColor("#EBF5FB")],
+                    ),
                     ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
                     ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ])

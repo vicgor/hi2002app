@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import ClassVar
 
-from PySide6.QtCore import QSettings, QSize, Qt, Slot
+from PySide6.QtCore import QSettings, QSize, Slot
 from PySide6.QtGui import QAction, QCloseEvent
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -61,7 +61,6 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         """Build all widgets and layouts."""
-        # Central tab widget
         self._tabs = QTabWidget()
         self._dashboard = DashboardWidget()
         self._titration = TitrationWidget()
@@ -69,7 +68,6 @@ class MainWindow(QMainWindow):
         self._tabs.addTab(self._titration, self.tr("Titration Curve"))
         self.setCentralWidget(self._tabs)
 
-        # Toolbar
         toolbar = QToolBar(self.tr("Main"))
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
@@ -105,7 +103,6 @@ class MainWindow(QMainWindow):
         act_settings.triggered.connect(self._on_settings)
         toolbar.addAction(act_settings)
 
-        # Status bar
         self._status = QStatusBar()
         self.setStatusBar(self._status)
         self._lbl_status = QLabel(self.tr("Not connected"))

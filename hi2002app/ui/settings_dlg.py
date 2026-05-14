@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QLabel,
@@ -48,15 +49,10 @@ class SettingsDialog(QDialog):
         self._build_ui()
         self._load_values()
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
-
     def _build_ui(self) -> None:
         """Create all form widgets."""
         layout = QVBoxLayout(self)
 
-        # --- Device ---
         dev_box = QGroupBox(self.tr("Device"))
         dev_form = QFormLayout(dev_box)
 
@@ -73,7 +69,6 @@ class SettingsDialog(QDialog):
         dev_form.addRow(self.tr("Baud Rate:"), self._cb_baud)
         layout.addWidget(dev_box)
 
-        # --- Equilibrium ---
         eq_box = QGroupBox(self.tr("Equilibrium Detection"))
         eq_form = QFormLayout(eq_box)
 
@@ -81,8 +76,6 @@ class SettingsDialog(QDialog):
         self._sp_window.setRange(3, 100)
         eq_form.addRow(self.tr("Window Size (samples):"), self._sp_window)
 
-        # Use float spinboxes via QDoubleSpinBox workaround
-        from PySide6.QtWidgets import QDoubleSpinBox
         self._dsb_std = QDoubleSpinBox()
         self._dsb_std.setRange(0.001, 1.0)
         self._dsb_std.setSingleStep(0.005)
@@ -96,7 +89,6 @@ class SettingsDialog(QDialog):
         eq_form.addRow(self.tr("Slope Threshold:"), self._dsb_slope)
         layout.addWidget(eq_box)
 
-        # --- Appearance ---
         ui_box = QGroupBox(self.tr("Appearance"))
         ui_form = QFormLayout(ui_box)
 
@@ -112,17 +104,12 @@ class SettingsDialog(QDialog):
         ui_form.addRow(lbl_restart)
         layout.addWidget(ui_box)
 
-        # --- Buttons ---
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self._save_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def _refresh_ports(self) -> None:
         """Repopulate the serial port combo box."""

@@ -26,9 +26,7 @@ class DashboardWidget(QWidget):
     def update_measurement(self, m: Measurement, result: EquilibriumResult) -> None:
         """Refresh all widgets with a new measurement."""
         self._lbl_ph_value.setText(f"{m.ph:.3f}")
-        self._lbl_temp.setText(
-            f"{m.temperature_c:.1f} °C" if m.temperature_c is not None else "—"
-        )
+        self._lbl_temp.setText(f"{m.temperature_c:.1f} °C" if m.temperature_c is not None else "—")
         self._lbl_mv.setText(f"{m.mv:.1f} mV" if m.mv is not None else "—")
         self._lbl_std.setText(f"σ = {result.window_std:.4f}")
         eq_text = self.tr("✓ Equilibrium reached") if result.reached else self.tr("Stabilising…")
@@ -92,7 +90,9 @@ class DashboardWidget(QWidget):
         self._plot_widget.setLabel("bottom", self.tr("Sample #"))
         self._plot_widget.setYRange(0, 14)
         self._plot_widget.showGrid(x=True, y=True, alpha=0.3)
-        self._plot_widget.addLine(y=7.0, pen=pg.mkPen(color="#4f98a3", style=Qt.PenStyle.DashLine))
+        self._plot_widget.addLine(
+            y=7.0, pen=pg.mkPen(color="#4f98a3", style=Qt.PenStyle.DashLine)
+        )
 
         self._curve = self._plot_widget.plot(
             pen=pg.mkPen(color="#6daa45", width=2),

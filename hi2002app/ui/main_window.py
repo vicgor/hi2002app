@@ -30,14 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
-    """Top-level application window.
-
-    Responsibilities:
-    - Host DashboardWidget and TitrationWidget in a QTabWidget.
-    - Own the DeviceReader QThread and EquilibriumDetector.
-    - Provide toolbar actions: connect/disconnect, export, settings.
-    - Persist window geometry via QSettings.
-    """
+    """Top-level application window."""
 
     MIN_SIZE: ClassVar[QSize] = QSize(1024, 680)
 
@@ -54,10 +47,6 @@ class MainWindow(QMainWindow):
 
         self._build_ui()
         self._restore_geometry()
-
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
 
     def _build_ui(self) -> None:
         """Build all widgets and layouts."""
@@ -111,10 +100,6 @@ class MainWindow(QMainWindow):
         self._status.addWidget(self._lbl_status)
         self._status.addPermanentWidget(self._lbl_eq)
         self._status.addPermanentWidget(self._lbl_ph)
-
-    # ------------------------------------------------------------------
-    # Slots — toolbar actions
-    # ------------------------------------------------------------------
 
     @Slot()
     def _on_connect(self) -> None:
@@ -213,10 +198,6 @@ class MainWindow(QMainWindow):
         dlg = SettingsDialog(self)
         dlg.exec()
 
-    # ------------------------------------------------------------------
-    # Slots — device signals
-    # ------------------------------------------------------------------
-
     @Slot(Measurement)
     def _on_measurement(self, m: Measurement) -> None:
         """Handle a new measurement from the device."""
@@ -250,10 +231,6 @@ class MainWindow(QMainWindow):
         self._lbl_status.setText(self.tr("Disconnected"))
         self._act_connect.setEnabled(True)
         self._act_disconnect.setEnabled(False)
-
-    # ------------------------------------------------------------------
-    # Window geometry persistence
-    # ------------------------------------------------------------------
 
     def _restore_geometry(self) -> None:
         """Restore saved window position and size."""

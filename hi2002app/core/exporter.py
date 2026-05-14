@@ -19,10 +19,6 @@ class DataExporter:
     All methods are classmethods so no instance is required.
     """
 
-    # ------------------------------------------------------------------
-    # CSV
-    # ------------------------------------------------------------------
-
     @classmethod
     def to_csv(cls, measurements: Sequence[Measurement], path: Path) -> None:
         """Export to CSV."""
@@ -36,10 +32,6 @@ class DataExporter:
             for m in measurements:
                 writer.writerow(m.to_dict())
         logger.info("Exported %d rows to CSV: %s", len(measurements), path)
-
-    # ------------------------------------------------------------------
-    # Excel (.xlsx)
-    # ------------------------------------------------------------------
 
     @classmethod
     def to_excel(cls, measurements: Sequence[Measurement], path: Path) -> None:
@@ -78,10 +70,6 @@ class DataExporter:
         wb.save(path)
         logger.info("Exported %d rows to Excel: %s", len(measurements), path)
 
-    # ------------------------------------------------------------------
-    # JSON
-    # ------------------------------------------------------------------
-
     @classmethod
     def to_json(cls, measurements: Sequence[Measurement], path: Path) -> None:
         """Export to JSON."""
@@ -89,10 +77,6 @@ class DataExporter:
         with path.open("w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, ensure_ascii=False)
         logger.info("Exported %d rows to JSON: %s", len(measurements), path)
-
-    # ------------------------------------------------------------------
-    # Markdown
-    # ------------------------------------------------------------------
 
     @classmethod
     def to_markdown(cls, measurements: Sequence[Measurement], path: Path) -> None:
@@ -111,10 +95,6 @@ class DataExporter:
 
         path.write_text("\n".join(lines), encoding="utf-8")
         logger.info("Exported %d rows to Markdown: %s", len(measurements), path)
-
-    # ------------------------------------------------------------------
-    # PDF
-    # ------------------------------------------------------------------
 
     @classmethod
     def to_pdf(cls, measurements: Sequence[Measurement], path: Path) -> None:
@@ -152,20 +132,22 @@ class DataExporter:
             col_width = (A4[0] - 4 * cm) / len(headers)
             table = Table(table_data, colWidths=[col_width] * len(headers))
             table.setStyle(
-                TableStyle([
-                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
-                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 7),
-                    (
-                        "ROWBACKGROUNDS",
-                        (0, 1),
-                        (-1, -1),
-                        [colors.white, colors.HexColor("#EBF5FB")],
-                    ),
-                    ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
-                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ])
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F4E79")),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("FONTSIZE", (0, 0), (-1, -1), 7),
+                        (
+                            "ROWBACKGROUNDS",
+                            (0, 1),
+                            (-1, -1),
+                            [colors.white, colors.HexColor("#EBF5FB")],
+                        ),
+                        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ]
+                )
             )
             story.append(table)
 

@@ -30,7 +30,7 @@ hi2002app = "hi2002app.__main__:main"
 
 [build-system]
 requires = ["setuptools>=70", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -49,3 +49,15 @@ python_version = "3.11"
 strict = true
 ignore_missing_imports = true
 exclude = ["tests/", "build/", "dist/"]
+
+[[tool.mypy.overrides]]
+module = [
+    "PySide6.*",
+    "pyqtgraph.*",
+    "serial.*",
+    "openpyxl.*",
+    "reportlab.*",
+    "pandas.*",
+    "numpy.*",
+]
+ignore_missing_imports = true

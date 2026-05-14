@@ -24,10 +24,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: Run ruff (lint)
+      - name: Run ruff check
         run: ruff check hi2002app tests
 
-      - name: Run ruff (format check)
+      - name: Run ruff format check
         run: ruff format --check hi2002app tests
 
       - name: Run mypy

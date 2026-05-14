@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import ClassVar
 
 import pyqtgraph as pg
 from PySide6.QtCore import Qt
@@ -12,7 +11,7 @@ from PySide6.QtWidgets import QGridLayout, QGroupBox, QLabel, QVBoxLayout, QWidg
 from hi2002app.core.equilibrium import EquilibriumResult
 from hi2002app.models.measurement import Measurement
 
-_MAX_POINTS = 300  # rolling window for live plot
+_MAX_POINTS = 300
 
 
 class DashboardWidget(QWidget):
@@ -24,16 +23,10 @@ class DashboardWidget(QWidget):
         self._ph_history: deque[float] = deque(maxlen=_MAX_POINTS)
         self._build_ui()
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def update_measurement(self, m: Measurement, result: EquilibriumResult) -> None:
         """Refresh all widgets with a new measurement."""
         self._lbl_ph_value.setText(f"{m.ph:.3f}")
-        self._lbl_temp.setText(
-            f"{m.temperature_c:.1f} °C" if m.temperature_c is not None else "—"
-        )
+        self._lbl_temp.setText(f"{m.temperature_c:.1f} °C" if m.temperature_c is not None else "—")
         self._lbl_mv.setText(f"{m.mv:.1f} mV" if m.mv is not None else "—")
         self._lbl_std.setText(f"σ = {result.window_std:.4f}")
         eq_text = self.tr("✓ Equilibrium reached") if result.reached else self.tr("Stabilising…")
@@ -45,7 +38,6 @@ class DashboardWidget(QWidget):
         self._ph_history.append(m.ph)
         self._curve.setData(list(self._ph_history))
 
-        # Draw equilibrium zone
         if result.reached and len(self._ph_history) > 0:
             last_ph = list(self._ph_history)[-1]
             self._eq_line.setPos(last_ph)
@@ -62,15 +54,10 @@ class DashboardWidget(QWidget):
         self._lbl_std.setText("")
         self._lbl_eq.setText("")
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
-
     def _build_ui(self) -> None:
         """Build widget layout."""
         layout = QVBoxLayout(self)
 
-        # --- KPI cards ---
         kpi_box = QGroupBox(self.tr("Current Reading"))
         kpi_grid = QGridLayout(kpi_box)
 
@@ -82,21 +69,16 @@ class DashboardWidget(QWidget):
 
         kpi_grid.addWidget(QLabel(self.tr("pH")), 0, 0, Qt.AlignmentFlag.AlignCenter)
         kpi_grid.addWidget(self._lbl_ph_value, 1, 0, Qt.AlignmentFlag.AlignCenter)
-
         kpi_grid.addWidget(QLabel(self.tr("Temperature")), 0, 1, Qt.AlignmentFlag.AlignCenter)
         kpi_grid.addWidget(self._lbl_temp, 1, 1, Qt.AlignmentFlag.AlignCenter)
-
         kpi_grid.addWidget(QLabel("mV"), 0, 2, Qt.AlignmentFlag.AlignCenter)
         kpi_grid.addWidget(self._lbl_mv, 1, 2, Qt.AlignmentFlag.AlignCenter)
-
         kpi_grid.addWidget(QLabel(self.tr("Std Dev")), 0, 3, Qt.AlignmentFlag.AlignCenter)
         kpi_grid.addWidget(self._lbl_std, 1, 3, Qt.AlignmentFlag.AlignCenter)
-
         kpi_grid.addWidget(self._lbl_eq, 1, 4, Qt.AlignmentFlag.AlignCenter)
 
         layout.addWidget(kpi_box)
 
-        # --- Live pH plot ---
         plot_box = QGroupBox(self.tr("Live pH Trend"))
         plot_layout = QVBoxLayout(plot_box)
 
@@ -115,8 +97,9 @@ class DashboardWidget(QWidget):
             name="pH",
         )
         self._eq_line = pg.InfiniteLine(
-            angle=0, movable=False,
-            pen=pg.mkPen(color="#fdab43", style=Qt.PenStyle.DotLine, width=1)
+            angle=0,
+            movable=False,
+            pen=pg.mkPen(color="#fdab43", style=Qt.PenStyle.DotLine, width=1),
         )
         self._eq_line.setVisible(False)
         self._plot_widget.addItem(self._eq_line)

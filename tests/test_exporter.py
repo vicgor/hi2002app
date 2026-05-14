@@ -35,8 +35,8 @@ class TestCSVExport:
 
     def test_empty_list_no_crash(self, tmp_path: Path) -> None:
         out = tmp_path / "empty.csv"
-        DataExporter.to_csv([], out)  # Should not raise, just log warning
-        assert not out.exists()  # Nothing written for empty list
+        DataExporter.to_csv([], out)
+        assert not out.exists()
 
 
 class TestJSONExport:
@@ -52,7 +52,9 @@ class TestJSONExport:
         assert isinstance(data, list)
         assert len(data) == len(sample_measurements)
 
-    def test_ph_values_in_json(self, sample_measurements: list[Measurement], tmp_path: Path) -> None:
+    def test_ph_values_in_json(
+        self, sample_measurements: list[Measurement], tmp_path: Path
+    ) -> None:
         out = tmp_path / "data.json"
         DataExporter.to_json(sample_measurements, out)
         data = json.loads(out.read_text(encoding="utf-8"))
@@ -78,7 +80,9 @@ class TestMarkdownExport:
         content = out.read_text(encoding="utf-8")
         assert "# HI2002" in content
 
-    def test_contains_table_separator(self, sample_measurements: list[Measurement], tmp_path: Path) -> None:
+    def test_contains_table_separator(
+        self, sample_measurements: list[Measurement], tmp_path: Path
+    ) -> None:
         out = tmp_path / "data.md"
         DataExporter.to_markdown(sample_measurements, out)
         content = out.read_text(encoding="utf-8")
@@ -90,9 +94,7 @@ class TestMarkdownExport:
         out = tmp_path / "data.md"
         DataExporter.to_markdown(sample_measurements, out)
         lines = out.read_text(encoding="utf-8").splitlines()
-        # header line + separator line + N data rows (+ title line)
-        data_lines = [l for l in lines if l.startswith("|") and "---" not in l]
-        # first data_line is column header, rest are data rows
+        data_lines = [line for line in lines if line.startswith("|") and "---" not in line]
         assert len(data_lines) - 1 == len(sample_measurements)
 
     def test_empty_list(self, tmp_path: Path) -> None:
@@ -115,7 +117,6 @@ class TestExcelExport:
         DataExporter.to_excel(sample_measurements, out)
         wb = openpyxl.load_workbook(out)
         ws = wb.active
-        # Row 1 = headers, rows 2..N+1 = data
         assert ws.max_row == len(sample_measurements) + 1  # type: ignore[union-attr]
 
     def test_empty_list(self, tmp_path: Path) -> None:

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
     QLabel,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QVBoxLayout,
+    QWidget,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,7 +41,7 @@ class SettingsDialog(QDialog):
     - Appearance: language, dark/light theme.
     """
 
-    def __init__(self, parent: QDialog | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialise the settings dialog."""
         super().__init__(parent)
         self.setWindowTitle(self.tr("Settings"))
@@ -48,15 +50,10 @@ class SettingsDialog(QDialog):
         self._build_ui()
         self._load_values()
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
-
     def _build_ui(self) -> None:
         """Create all form widgets."""
         layout = QVBoxLayout(self)
 
-        # --- Device ---
         dev_box = QGroupBox(self.tr("Device"))
         dev_form = QFormLayout(dev_box)
 
@@ -73,7 +70,6 @@ class SettingsDialog(QDialog):
         dev_form.addRow(self.tr("Baud Rate:"), self._cb_baud)
         layout.addWidget(dev_box)
 
-        # --- Equilibrium ---
         eq_box = QGroupBox(self.tr("Equilibrium Detection"))
         eq_form = QFormLayout(eq_box)
 
@@ -81,8 +77,6 @@ class SettingsDialog(QDialog):
         self._sp_window.setRange(3, 100)
         eq_form.addRow(self.tr("Window Size (samples):"), self._sp_window)
 
-        # Use float spinboxes via QDoubleSpinBox workaround
-        from PySide6.QtWidgets import QDoubleSpinBox
         self._dsb_std = QDoubleSpinBox()
         self._dsb_std.setRange(0.001, 1.0)
         self._dsb_std.setSingleStep(0.005)
@@ -96,7 +90,6 @@ class SettingsDialog(QDialog):
         eq_form.addRow(self.tr("Slope Threshold:"), self._dsb_slope)
         layout.addWidget(eq_box)
 
-        # --- Appearance ---
         ui_box = QGroupBox(self.tr("Appearance"))
         ui_form = QFormLayout(ui_box)
 
@@ -112,17 +105,12 @@ class SettingsDialog(QDialog):
         ui_form.addRow(lbl_restart)
         layout.addWidget(ui_box)
 
-        # --- Buttons ---
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self._save_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
 
     def _refresh_ports(self) -> None:
         """Repopulate the serial port combo box."""
@@ -135,32 +123,33 @@ class SettingsDialog(QDialog):
 
     def _load_values(self) -> None:
         """Load current QSettings values into widgets."""
-        port: str = self._settings.value("device/port", "COM1", type=str)  # type: ignore[call-overload]
+        port = str(self._settings.value("device/port", "COM1"))
         idx = self._cb_port.findData(port)
         if idx >= 0:
             self._cb_port.setCurrentIndex(idx)
 
-        baud: int = self._settings.value("device/baud", 1200, type=int)  # type: ignore[call-overload]
+        baud = int(str(self._settings.value("device/baud", 1200)))
         idx = self._cb_baud.findData(baud)
         if idx >= 0:
             self._cb_baud.setCurrentIndex(idx)
 
         self._sp_window.setValue(
-            self._settings.value("equilibrium/window", 10, type=int)  # type: ignore[call-overload]
+            int(str(self._settings.value("equilibrium/window", 10)))
         )
         self._dsb_std.setValue(
-            self._settings.value("equilibrium/std_threshold", 0.02, type=float)  # type: ignore[call-overload]
+            float(str(self._settings.value("equilibrium/std_threshold", 0.02)))
         )
         self._dsb_slope.setValue(
-            self._settings.value("equilibrium/slope_threshold", 0.005, type=float)  # type: ignore[call-overload]
+            float(str(self._settings.value("equilibrium/slope_threshold", 0.005)))
         )
 
-        lang: str = self._settings.value("ui/language", "en", type=str)  # type: ignore[call-overload]
+        lang = str(self._settings.value("ui/language", "en"))
         idx = self._cb_lang.findData(lang)
         if idx >= 0:
             self._cb_lang.setCurrentIndex(idx)
 
-        dark: bool = self._settings.value("ui/dark_mode", False, type=bool)  # type: ignore[call-overload]
+        raw_dark = self._settings.value("ui/dark_mode", False)
+        dark = raw_dark if isinstance(raw_dark, bool) else str(raw_dark).lower() == "true"
         self._chk_dark.setChecked(dark)
 
     def _save_and_accept(self) -> None:

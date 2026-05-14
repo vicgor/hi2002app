@@ -7,14 +7,15 @@ requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "MIT"}
 
-[project.dependencies]
-PySide6 = ">=6.7"
-pyserial = ">=3.5"
-numpy = ">=1.26"
-pandas = ">=2.2"
-openpyxl = ">=3.1"
-reportlab = ">=4.1"
-pyqtgraph = ">=0.13"
+dependencies = [
+    "PySide6>=6.7",
+    "pyserial>=3.5",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "openpyxl>=3.1",
+    "reportlab>=4.1",
+    "pyqtgraph>=0.13",
+]
 
 [project.optional-dependencies]
 dev = [
@@ -23,6 +24,7 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "pyinstaller>=6.6",
+    "PySide6-stubs>=6.7",
 ]
 
 [project.scripts]
@@ -30,7 +32,7 @@ hi2002app = "hi2002app.__main__:main"
 
 [build-system]
 requires = ["setuptools>=70", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -38,10 +40,12 @@ where = ["."]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "ANN", "B", "SIM"]
 ignore = ["ANN101", "ANN102"]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ANN"]
 
 [tool.mypy]
@@ -49,3 +53,19 @@ python_version = "3.11"
 strict = true
 ignore_missing_imports = true
 exclude = ["tests/", "build/", "dist/"]
+
+[[tool.mypy.overrides]]
+module = [
+    "pyqtgraph.*",
+    "serial.*",
+    "openpyxl.*",
+    "reportlab.*",
+    "pandas.*",
+    "numpy.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["hi2002app.ui.*", "hi2002app.core.device"]
+disallow_subclassing_any = false
+disallow_untyped_decorators = false

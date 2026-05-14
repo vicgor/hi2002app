@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import patch
 
 import pytest
 
@@ -14,7 +13,7 @@ from hi2002app.models.measurement import Measurement
 @pytest.fixture
 def reader() -> DeviceReader:
     """Return a DeviceReader instance (no port opened)."""
-    return DeviceReader(port="COM99")  # Non-existent port — parse-only tests
+    return DeviceReader(port="COM99")
 
 
 class TestParseLineValid:
@@ -69,7 +68,6 @@ class TestParseLineInvalid:
         assert reader._parse_line("pH 7.00 T 25.0") is None  # noqa: SLF001
 
     def test_non_numeric_ph(self, reader: DeviceReader) -> None:
-        # Pattern won't match non-digit pH
         assert reader._parse_line("pH XX T 25.0 mV 0.0") is None  # noqa: SLF001
 
 

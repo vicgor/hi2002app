@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import ClassVar
 
-from PySide6.QtCore import QSettings, QSize, Qt, Slot
+from PySide6.QtCore import QSettings, QSize, Slot
 from PySide6.QtGui import QAction, QCloseEvent
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -32,11 +32,8 @@ logger = logging.getLogger(__name__)
 class MainWindow(QMainWindow):
     """Top-level application window.
 
-    Responsibilities:
-    - Host DashboardWidget and TitrationWidget in a QTabWidget.
-    - Own the DeviceReader QThread and EquilibriumDetector.
-    - Provide toolbar actions: connect/disconnect, export, settings.
-    - Persist window geometry via QSettings.
+    Hosts Dashboard and Titration tabs, owns DeviceReader thread
+    and EquilibriumDetector. Persists geometry via QSettings.
     """
 
     MIN_SIZE: ClassVar[QSize] = QSize(1024, 680)
@@ -55,13 +52,8 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._restore_geometry()
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
-
     def _build_ui(self) -> None:
         """Build all widgets and layouts."""
-        # Central tab widget
         self._tabs = QTabWidget()
         self._dashboard = DashboardWidget()
         self._titration = TitrationWidget()
@@ -69,7 +61,6 @@ class MainWindow(QMainWindow):
         self._tabs.addTab(self._titration, self.tr("Titration Curve"))
         self.setCentralWidget(self._tabs)
 
-        # Toolbar
         toolbar = QToolBar(self.tr("Main"))
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
@@ -105,7 +96,6 @@ class MainWindow(QMainWindow):
         act_settings.triggered.connect(self._on_settings)
         toolbar.addAction(act_settings)
 
-        # Status bar
         self._status = QStatusBar()
         self.setStatusBar(self._status)
         self._lbl_status = QLabel(self.tr("Not connected"))
@@ -115,16 +105,12 @@ class MainWindow(QMainWindow):
         self._status.addPermanentWidget(self._lbl_eq)
         self._status.addPermanentWidget(self._lbl_ph)
 
-    # ------------------------------------------------------------------
-    # Slots — toolbar actions
-    # ------------------------------------------------------------------
-
     @Slot()
     def _on_connect(self) -> None:
         """Open serial port and start reading."""
         settings = QSettings()
-        port: str = settings.value("device/port", "COM1", type=str)  # type: ignore[call-overload]
-        baud: int = settings.value("device/baud", 1200, type=int)  # type: ignore[call-overload]
+        port = str(settings.value("device/port", "COM1"))
+        baud = int(str(settings.value("device/baud", 1200)))
         self._start_reader(port=port, baud=baud, demo=False)
 
     @Slot()
@@ -158,7 +144,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, self.tr("Export"), self.tr("No data to export."))
             return
 
-        path_str, chosen_filter = QFileDialog.getSaveFileName(
+        path_str, _ = QFileDialog.getSaveFileName(
             self,
             self.tr("Export Data"),
             "",
@@ -216,10 +202,6 @@ class MainWindow(QMainWindow):
         dlg = SettingsDialog(self)
         dlg.exec()
 
-    # ------------------------------------------------------------------
-    # Slots — device signals
-    # ------------------------------------------------------------------
-
     @Slot(Measurement)
     def _on_measurement(self, m: Measurement) -> None:
         """Handle a new measurement from the device."""
@@ -253,10 +235,6 @@ class MainWindow(QMainWindow):
         self._lbl_status.setText(self.tr("Disconnected"))
         self._act_connect.setEnabled(True)
         self._act_disconnect.setEnabled(False)
-
-    # ------------------------------------------------------------------
-    # Window geometry persistence
-    # ------------------------------------------------------------------
 
     def _restore_geometry(self) -> None:
         """Restore saved window position and size."""

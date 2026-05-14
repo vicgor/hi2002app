@@ -6,16 +6,12 @@ import logging
 import platform
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSettings, Qt, QTranslator
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from hi2002app.ui.main_window import MainWindow
-
-if TYPE_CHECKING:
-    import winreg
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +47,7 @@ def _detect_dark_mode() -> bool:
     if platform.system() != "Windows":
         return False
     try:
-        import winreg as _winreg
+        import winreg as _winreg  # noqa: PLC0415
 
         key = _winreg.OpenKey(
             _winreg.HKEY_CURRENT_USER,

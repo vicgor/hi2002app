@@ -24,6 +24,7 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
     "pyinstaller>=6.6",
+    "PySide6-stubs>=6.7",
 ]
 
 [project.scripts]
@@ -55,7 +56,6 @@ exclude = ["tests/", "build/", "dist/"]
 
 [[tool.mypy.overrides]]
 module = [
-    "PySide6.*",
     "pyqtgraph.*",
     "serial.*",
     "openpyxl.*",
@@ -64,3 +64,8 @@ module = [
     "numpy.*",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["hi2002app.ui.*", "hi2002app.core.device"]
+disallow_subclassing_any = false
+disallow_untyped_decorators = false

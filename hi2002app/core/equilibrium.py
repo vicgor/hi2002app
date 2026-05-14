@@ -1,97 +1,94 @@
-"""pH equilibrium detection using a rolling-window stability criterion.
-
-A measurement is considered at equilibrium when the standard deviation
-of the last N pH readings falls below a configurable threshold AND
-the absolute slope (linear regression) is below a rate threshold.
-"""
+"""Equilibrium detection algorithm for pH stabilisation."""
 
 from __future__ import annotations
 
-import logging
 from collections import deque
-from typing import Optional
+from dataclasses import dataclass
 
-import numpy as np
 
-from hi2002app.models.measurement import Measurement
+@dataclass
+class EquilibriumResult:
+    """Result of a single equilibrium check.
 
-log = logging.getLogger(__name__)
+    Attributes:
+        reached: True when equilibrium criteria are met.
+        window_std: Standard deviation of pH over the analysis window.
+        slope: Absolute rate of change (pH/sample).
+        samples_in_window: Number of samples used.
+    """
 
-_DEFAULT_WINDOW = 10       # number of readings in rolling window
-_DEFAULT_STD_THR = 0.02    # pH units — stability threshold
-_DEFAULT_SLOPE_THR = 0.005 # pH/s — drift rate threshold
+    reached: bool
+    window_std: float
+    slope: float
+    samples_in_window: int
 
 
 class EquilibriumDetector:
-    """Stateful detector that flags measurements at pH equilibrium.
+    """Detect when the pH reading has stabilised.
 
-    Args:
-        window: Rolling window size (number of measurements).
-        std_threshold: Max allowed std deviation (pH units).
-        slope_threshold: Max allowed drift slope (pH/s).
+    Uses a rolling window.  Equilibrium is declared when *both*:
+    - The standard deviation of pH in the window is below ``std_threshold``.
+    - The absolute linear slope is below ``slope_threshold`` (pH / sample).
+
+    Parameters:
+        window_size: Number of consecutive readings to evaluate.
+        std_threshold: Maximum allowed std deviation (default 0.02 pH units).
+        slope_threshold: Maximum allowed slope (default 0.005 pH/sample).
     """
 
     def __init__(
         self,
-        window: int = _DEFAULT_WINDOW,
-        std_threshold: float = _DEFAULT_STD_THR,
-        slope_threshold: float = _DEFAULT_SLOPE_THR,
+        window_size: int = 10,
+        std_threshold: float = 0.02,
+        slope_threshold: float = 0.005,
     ) -> None:
-        """Initialise detector with configurable thresholds."""
-        self.window = window
+        """Initialise the detector."""
+        self.window_size = window_size
         self.std_threshold = std_threshold
         self.slope_threshold = slope_threshold
-        self._ph_buf: deque[float] = deque(maxlen=window)
-        self._ts_buf: deque[float] = deque(maxlen=window)  # Unix timestamps
-        self._equilibrium_count: int = 0
+        self._buffer: deque[float] = deque(maxlen=window_size)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def reset(self) -> None:
-        """Clear internal buffers (e.g. on new titration step)."""
-        self._ph_buf.clear()
-        self._ts_buf.clear()
-        self._equilibrium_count = 0
+        """Clear the internal buffer (call before a new titration)."""
+        self._buffer.clear()
 
-    @property
-    def equilibrium_count(self) -> int:
-        """Number of consecutive equilibrium readings."""
-        return self._equilibrium_count
-
-    def update(self, m: Measurement) -> Measurement:
-        """Process a measurement and return it with at_equilibrium set.
-
-        Args:
-            m: Incoming measurement.
+    def add_reading(self, ph: float) -> EquilibriumResult:
+        """Add a new pH reading and evaluate equilibrium.
 
         Returns:
-            The same measurement object with ``at_equilibrium`` updated.
+            EquilibriumResult with the current stability assessment.
         """
-        self._ph_buf.append(m.ph)
-        self._ts_buf.append(m.timestamp.timestamp())
+        self._buffer.append(ph)
+        n = len(self._buffer)
 
-        m.at_equilibrium = self._check_equilibrium()
-        if m.at_equilibrium:
-            self._equilibrium_count += 1
-        else:
-            self._equilibrium_count = 0
-        return m
+        if n < self.window_size:
+            return EquilibriumResult(
+                reached=False,
+                window_std=0.0,
+                slope=0.0,
+                samples_in_window=n,
+            )
 
-    def _check_equilibrium(self) -> bool:
-        """Return True if current window satisfies stability criteria."""
-        if len(self._ph_buf) < self.window:
-            return False
+        values = list(self._buffer)
+        mean = sum(values) / n
+        variance = sum((v - mean) ** 2 for v in values) / n
+        std = variance**0.5
 
-        ph_arr = np.array(self._ph_buf, dtype=float)
-        ts_arr = np.array(self._ts_buf, dtype=float)
+        # Simple linear regression slope
+        xs = list(range(n))
+        x_mean = (n - 1) / 2.0
+        numerator = sum((xs[i] - x_mean) * (values[i] - mean) for i in range(n))
+        denominator = sum((x - x_mean) ** 2 for x in xs)
+        slope = abs(numerator / denominator) if denominator > 0 else 0.0
 
-        # 1. Standard deviation criterion
-        if float(np.std(ph_arr)) > self.std_threshold:
-            return False
-
-        # 2. Slope criterion (linear regression)
-        dt = ts_arr - ts_arr[0]
-        if dt[-1] > 0:
-            slope = float(np.polyfit(dt, ph_arr, 1)[0])
-            if abs(slope) > self.slope_threshold:
-                return False
-
-        return True
+        reached = std <= self.std_threshold and slope <= self.slope_threshold
+        return EquilibriumResult(
+            reached=reached,
+            window_std=round(std, 5),
+            slope=round(slope, 6),
+            samples_in_window=n,
+        )

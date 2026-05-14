@@ -1,11 +1,4 @@
-"""Serial communication with Hanna HI2002 pH meter.
-
-The HI2002 outputs data over RS-232 at 1200 baud, 7 data bits,
-even parity, 1 stop bit (7E1). Each line is terminated with CR+LF
-and contains pH, mV and temperature values.
-
-Example output line:  pH= 7.01  mV= -3.2  T= 25.1 C
-"""
+"""HI2002 serial device reader running in a background QThread."""
 
 from __future__ import annotations
 
@@ -13,137 +6,160 @@ import logging
 import re
 import time
 from datetime import datetime
-from typing import Optional
+from typing import ClassVar
 
 import serial
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QThread, Signal
 
 from hi2002app.models.measurement import Measurement
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-# Default HI2002 serial parameters
-_BAUD = 1200
-_BYTESIZE = serial.SEVENBITS
-_PARITY = serial.PARITY_EVEN
-_STOPBITS = serial.STOPBITS_ONE
-_TIMEOUT = 2.0  # seconds
-
-# Regex for parsing a HI2002 output line
-_LINE_RE = re.compile(
-    r"pH=\s*(?P<ph>[\-0-9.]+)"
-    r".*?mV=\s*(?P<mv>[\-0-9.]+)"
-    r".*?T=\s*(?P<temp>[\-0-9.]+)",
+# HI2002 sends lines like:  "pH  7.01  T  25.0  mV  -12.5\r\n"
+# Adjust the pattern to the actual HI2002 output format.
+_LINE_PATTERN: re.Pattern[str] = re.compile(
+    r"pH\s+(?P<ph>[\d.]+).*?T\s+(?P<temp>[\d.]+).*?mV\s+(?P<mv>[\-\d.]+)",
     re.IGNORECASE,
 )
 
 
-class DeviceReader(QObject):
-    """Reads measurements from HI2002 in a background QThread.
+class DeviceReader(QThread):
+    """Background thread that reads measurements from the HI2002 via RS-232.
 
     Signals:
-        measurement_ready: Emitted for each successfully parsed measurement.
-        error_occurred: Emitted when a serial or parse error occurs.
-        connection_changed: Emitted when connection state changes (True=connected).
+        measurement_ready: Emitted with every successfully parsed Measurement.
+        error_occurred: Emitted with a human-readable error string.
+        connected: Emitted when the port opens successfully.
+        disconnected: Emitted when the port is closed or lost.
     """
 
-    measurement_ready: Signal = Signal(object)   # Measurement
-    error_occurred: Signal = Signal(str)
-    connection_changed: Signal = Signal(bool)
+    measurement_ready: ClassVar[Signal] = Signal(Measurement)
+    error_occurred: ClassVar[Signal] = Signal(str)
+    connected: ClassVar[Signal] = Signal()
+    disconnected: ClassVar[Signal] = Signal()
 
-    def __init__(self, parent: Optional[QObject] = None) -> None:
-        """Initialise the reader (not yet connected)."""
-        super().__init__(parent)
-        self._port: str = ""
-        self._running: bool = False
-        self._serial: Optional[serial.Serial] = None
-        self._thread: Optional[QThread] = None
-        self._volume_ml: float = 0.0  # current titrant volume
+    # HI2002 default serial params
+    DEFAULT_BAUD: int = 1200
+    DEFAULT_BYTESIZE: int = 7
+    DEFAULT_PARITY: str = serial.PARITY_EVEN
+    DEFAULT_STOPBITS: float = serial.STOPBITS_ONE
+    POLL_INTERVAL_S: float = 1.0
+
+    def __init__(
+        self,
+        port: str = "COM1",
+        baud_rate: int = DEFAULT_BAUD,
+        poll_interval: float = POLL_INTERVAL_S,
+    ) -> None:
+        """Initialise the reader."""
+        super().__init__()
+        self.port = port
+        self.baud_rate = baud_rate
+        self.poll_interval = poll_interval
+        self._running = False
+        self._demo_mode = False  # Set True when no physical device present
+        self._demo_ph: float = 7.0
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def set_port(self, port: str) -> None:
-        """Set the serial port name (e.g. 'COM3')."""
-        self._port = port
+    def set_demo_mode(self, enabled: bool) -> None:
+        """Enable demo/simulation mode (no physical device needed)."""
+        self._demo_mode = enabled
 
-    def set_volume(self, volume_ml: float) -> None:
-        """Update current titrant volume (called externally during titration)."""
-        self._volume_ml = volume_ml
-
-    def start(self) -> None:
-        """Open the serial port and start reading in a QThread."""
-        if self._running:
-            return
-        self._thread = QThread()
-        self.moveToThread(self._thread)
-        self._thread.started.connect(self._run)
-        self._thread.start()
-
-    def stop(self) -> None:
-        """Stop reading and close the port."""
+    def stop_reading(self) -> None:
+        """Request the reading loop to stop."""
         self._running = False
-        if self._thread:
-            self._thread.quit()
-            self._thread.wait(3000)
 
     # ------------------------------------------------------------------
-    # Internal
+    # QThread.run
     # ------------------------------------------------------------------
 
-    def _run(self) -> None:
-        """Main loop executed in the worker thread."""
+    def run(self) -> None:  # noqa: C901
+        """Main loop — called by QThread.start()."""
+        self._running = True
+
+        if self._demo_mode:
+            self._demo_loop()
+            return
+
         try:
-            self._serial = serial.Serial(
-                port=self._port,
-                baudrate=_BAUD,
-                bytesize=_BYTESIZE,
-                parity=_PARITY,
-                stopbits=_STOPBITS,
-                timeout=_TIMEOUT,
+            port = serial.Serial(
+                port=self.port,
+                baudrate=self.baud_rate,
+                bytesize=self.DEFAULT_BYTESIZE,
+                parity=self.DEFAULT_PARITY,
+                stopbits=self.DEFAULT_STOPBITS,
+                timeout=2,
             )
-            self._running = True
-            self.connection_changed.emit(True)
-            log.info("Connected to HI2002 on %s", self._port)
         except serial.SerialException as exc:
-            log.error("Cannot open port %s: %s", self._port, exc)
+            logger.error("Cannot open serial port %s: %s", self.port, exc)
             self.error_occurred.emit(str(exc))
             return
 
-        while self._running:
-            try:
-                raw = self._serial.readline()
-                if raw:
-                    m = self._parse(raw)
-                    if m:
-                        self.measurement_ready.emit(m)
-            except serial.SerialException as exc:
-                log.error("Serial read error: %s", exc)
-                self.error_occurred.emit(str(exc))
-                self._running = False
+        self.connected.emit()
+        logger.info("Connected to HI2002 on %s at %d baud", self.port, self.baud_rate)
 
-        if self._serial and self._serial.is_open:
-            self._serial.close()
-        self.connection_changed.emit(False)
-        log.info("Disconnected from HI2002")
-
-    def _parse(self, raw: bytes) -> Optional[Measurement]:
-        """Parse a raw byte line into a Measurement."""
         try:
-            line = raw.decode("ascii", errors="ignore").strip()
-        except Exception:
-            return None
-        m = _LINE_RE.search(line)
-        if not m:
+            while self._running:
+                try:
+                    raw = port.readline().decode("ascii", errors="replace").strip()
+                    if raw:
+                        m = self._parse_line(raw)
+                        if m:
+                            self.measurement_ready.emit(m)
+                except serial.SerialException as exc:
+                    logger.error("Serial read error: %s", exc)
+                    self.error_occurred.emit(str(exc))
+                    break
+                time.sleep(self.poll_interval)
+        finally:
+            port.close()
+            self.disconnected.emit()
+            logger.info("Disconnected from HI2002")
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _parse_line(self, line: str) -> Measurement | None:
+        """Parse a raw serial line from HI2002 into a Measurement."""
+        match = _LINE_PATTERN.search(line)
+        if not match:
+            logger.debug("Unrecognised line: %r", line)
             return None
         try:
             return Measurement(
                 timestamp=datetime.utcnow(),
-                ph=float(m.group("ph")),
-                mv=float(m.group("mv")),
-                temperature=float(m.group("temp")),
-                volume_ml=self._volume_ml,
+                ph=float(match.group("ph")),
+                temperature_c=float(match.group("temp")),
+                mv=float(match.group("mv")),
             )
-        except ValueError:
+        except ValueError as exc:
+            logger.warning("Parse error on line %r: %s", line, exc)
             return None
+
+    def _demo_loop(self) -> None:
+        """Simulate HI2002 output for testing without hardware."""
+        import math
+        import random
+
+        step = 0
+        logger.info("Demo mode active")
+        self.connected.emit()
+        while self._running:
+            # Slowly drift pH from 4 to 10 (simulate titration)
+            self._demo_ph = 4.0 + 6.0 * (1 - math.exp(-step / 80.0)) + random.gauss(0, 0.02)
+            self._demo_ph = max(0.0, min(14.0, self._demo_ph))
+            m = Measurement(
+                timestamp=datetime.utcnow(),
+                ph=round(self._demo_ph, 3),
+                temperature_c=round(25.0 + random.gauss(0, 0.1), 1),
+                mv=round(-59.16 * (self._demo_ph - 7.0), 1),
+                volume_ml=round(step * 0.1, 2),
+            )
+            self.measurement_ready.emit(m)
+            step += 1
+            time.sleep(self.poll_interval)
+        self.disconnected.emit()

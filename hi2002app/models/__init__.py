@@ -1,4 +1,4 @@
-"""Data models for HI2002 measurements."""
+"""Data models."""
 
 from hi2002app.models.measurement import Measurement
 

@@ -1,4 +1,4 @@
-"""Core business logic: device I/O, equilibrium detection, data export."""
+"""Business-logic core: device I/O, equilibrium, export."""
 
 from hi2002app.core.device import DeviceReader
 from hi2002app.core.equilibrium import EquilibriumDetector

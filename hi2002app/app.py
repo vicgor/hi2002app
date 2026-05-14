@@ -1,94 +1,101 @@
-"""QApplication factory with theme, HiDPI and i18n setup."""
+"""QApplication factory — theme, HiDPI, translator setup."""
 
 from __future__ import annotations
 
-import sys
 import logging
+import sys
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, QTranslator, QLocale, Qt
-from PySide6.QtGui import QPalette, QColor
+from PySide6.QtCore import QSettings, QTranslator, Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from hi2002app.ui.main_window import MainWindow
 
-log = logging.getLogger(__name__)
-
-APP_NAME = "HI2002App"
-ORG_NAME = "HannaInstruments"
+logger = logging.getLogger(__name__)
 
 
 def _setup_logging() -> None:
     """Configure file + console logging."""
-    import os
-    log_dir = Path(os.getenv("LOCALAPPDATA", Path.home())) / APP_NAME / "logs"
+    log_dir = Path.home() / "AppData" / "Local" / "HI2002App" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "hi2002app.log"
+
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
-            logging.FileHandler(log_dir / "app.log", encoding="utf-8"),
+            logging.FileHandler(log_file, encoding="utf-8"),
             logging.StreamHandler(sys.stdout),
         ],
     )
 
 
-def _is_dark_theme() -> bool:
-    """Detect Windows dark mode via registry."""
+def _detect_dark_mode() -> bool:
+    """Detect Windows dark mode from the registry."""
     try:
-        import winreg
+        import winreg  # type: ignore[import]
         key = winreg.OpenKey(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
         )
-        value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-        return value == 0
-    except Exception:
+        val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+        return val == 0
+    except Exception:  # noqa: BLE001
         return False
 
 
-def _apply_theme(app: QApplication) -> None:
-    """Apply dark or light QSS theme."""
-    theme = "dark" if _is_dark_theme() else "light"
+def _load_stylesheet(app: QApplication, dark: bool) -> None:
+    """Load QSS stylesheet based on theme."""
+    theme = "dark" if dark else "light"
     qss_path = Path(__file__).parent / "resources" / "styles" / f"{theme}.qss"
     if qss_path.exists():
         app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
-        log.info("Applied theme: %s", theme)
     else:
-        log.warning("Theme file not found: %s", qss_path)
+        logger.warning("Stylesheet not found: %s", qss_path)
 
 
-def _setup_translator(app: QApplication, lang: str | None = None) -> None:
-    """Load Qt translation file for the given language code."""
-    settings = QSettings(ORG_NAME, APP_NAME)
-    if lang is None:
-        lang = settings.value("ui/language", QLocale.system().name()[:2], type=str)
-    i18n_dir = Path(__file__).parent / "i18n"
+def _install_translator(app: QApplication, locale: str) -> QTranslator:
+    """Install Qt translator for *locale* (e.g. 'ru', 'en')."""
     translator = QTranslator(app)
-    qm_file = i18n_dir / f"hi2002app_{lang}.qm"
-    if translator.load(str(qm_file)):
+    qm_path = Path(__file__).parent / "i18n" / f"hi2002app_{locale}.qm"
+    if qm_path.exists():
+        translator.load(str(qm_path))
         app.installTranslator(translator)
-        log.info("Loaded translation: %s", qm_file)
+        logger.info("Loaded translation: %s", qm_path)
     else:
-        log.info("No translation for language '%s', using default (en)", lang)
+        logger.warning("Translation file not found: %s", qm_path)
+    return translator
 
 
-def run() -> None:
-    """Bootstrap and run the application event loop."""
+def create_app(argv: list[str]) -> QApplication:
+    """Create and configure QApplication, return it (caller calls .exec())."""
     _setup_logging()
 
+    # HiDPI
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
-    app = QApplication(sys.argv)
-    app.setApplicationName(APP_NAME)
-    app.setOrganizationName(ORG_NAME)
+
+    app = QApplication(argv)
+    app.setApplicationName("HI2002App")
+    app.setOrganizationName("HannaInstruments")
     app.setApplicationVersion("0.1.0")
 
-    _apply_theme(app)
-    _setup_translator(app)
+    icon_path = Path(__file__).parent / "resources" / "icons" / "app.ico"
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
 
-    window = MainWindow()
+    # Theme
+    settings = QSettings()
+    dark = settings.value("ui/dark_mode", _detect_dark_mode(), type=bool)  # type: ignore[call-overload]
+    _load_stylesheet(app, dark)
+
+    # Language
+    locale: str = settings.value("ui/language", "en", type=str)  # type: ignore[call-overload]
+    _install_translator(app, locale)
+
+    window = MainWindow(dark_mode=dark)
     window.show()
 
-    sys.exit(app.exec())
+    return app

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import platform
 import sys
 from pathlib import Path
 
@@ -11,6 +10,7 @@ from PySide6.QtCore import QSettings, Qt, QTranslator
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
+from hi2002app._platform import detect_dark_mode
 from hi2002app.ui.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 def _get_log_dir() -> Path:
     """Return platform-appropriate log directory."""
+    import platform
+
     if platform.system() == "Windows":
         base = Path.home() / "AppData" / "Local"
     elif platform.system() == "Darwin":
@@ -40,23 +42,6 @@ def _setup_logging() -> None:
             logging.StreamHandler(sys.stdout),
         ],
     )
-
-
-def _detect_dark_mode() -> bool:
-    """Detect Windows dark mode from the registry."""
-    if platform.system() != "Windows":
-        return False
-    try:
-        import winreg  # type: ignore[import-not-found]
-
-        key = winreg.OpenKey(  # type: ignore[attr-defined]
-            winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
-            r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-        )
-        val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")  # type: ignore[attr-defined]
-        return val == 0  # type: ignore[no-any-return]
-    except Exception:  # noqa: BLE001
-        return False
 
 
 def _load_stylesheet(app: QApplication, dark: bool) -> None:
@@ -100,7 +85,7 @@ def create_app(argv: list[str]) -> QApplication:
         app.setWindowIcon(QIcon(str(icon_path)))
 
     settings = QSettings()
-    raw_dark = settings.value("ui/dark_mode", _detect_dark_mode())
+    raw_dark = settings.value("ui/dark_mode", detect_dark_mode())
     dark = raw_dark if isinstance(raw_dark, bool) else str(raw_dark).lower() == "true"
     _load_stylesheet(app, dark)
 

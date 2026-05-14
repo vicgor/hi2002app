@@ -69,3 +69,7 @@ ignore_missing_imports = true
 module = ["hi2002app.ui.*", "hi2002app.core.device"]
 disallow_subclassing_any = false
 disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["hi2002app._platform"]
+ignore_errors = true

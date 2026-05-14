@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import deque
 from dataclasses import dataclass
 
@@ -36,6 +37,9 @@ class EquilibriumDetector:
         slope_threshold: Maximum allowed slope (default 0.005 pH/sample).
     """
 
+    PH_MIN: float = 0.0
+    PH_MAX: float = 14.0
+
     def __init__(
         self,
         window_size: int = 10,
@@ -48,10 +52,6 @@ class EquilibriumDetector:
         self.slope_threshold = slope_threshold
         self._buffer: deque[float] = deque(maxlen=window_size)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def reset(self) -> None:
         """Clear the internal buffer (call before a new titration)."""
         self._buffer.clear()
@@ -59,9 +59,19 @@ class EquilibriumDetector:
     def add_reading(self, ph: float) -> EquilibriumResult:
         """Add a new pH reading and evaluate equilibrium.
 
+        Silently ignores NaN, Inf or out-of-range values (0–14).
+
         Returns:
             EquilibriumResult with the current stability assessment.
         """
+        if not math.isfinite(ph) or not (self.PH_MIN <= ph <= self.PH_MAX):
+            return EquilibriumResult(
+                reached=False,
+                window_std=0.0,
+                slope=0.0,
+                samples_in_window=len(self._buffer),
+            )
+
         self._buffer.append(ph)
         n = len(self._buffer)
 
@@ -78,7 +88,6 @@ class EquilibriumDetector:
         variance = sum((v - mean) ** 2 for v in values) / n
         std = variance**0.5
 
-        # Simple linear regression slope
         xs = list(range(n))
         x_mean = (n - 1) / 2.0
         numerator = sum((xs[i] - x_mean) * (values[i] - mean) for i in range(n))

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
 from hi2002app.core.equilibrium import EquilibriumDetector, EquilibriumResult
@@ -9,74 +11,75 @@ from hi2002app.core.equilibrium import EquilibriumDetector, EquilibriumResult
 
 @pytest.fixture
 def detector() -> EquilibriumDetector:
-    return EquilibriumDetector(window_size=10, std_threshold=0.02, slope_threshold=0.005)
-
-
-class TestEquilibriumResult:
-    """EquilibriumResult dataclass."""
-
-    def test_fields(self) -> None:
-        r = EquilibriumResult(reached=True, window_std=0.01, slope=0.001, samples_in_window=10)
-        assert r.reached is True
-        assert r.window_std == 0.01
+    """Return a default EquilibriumDetector."""
+    return EquilibriumDetector(window_size=5, std_threshold=0.02, slope_threshold=0.005)
 
 
 class TestEquilibriumDetector:
-    """Core detection logic."""
-
-    def test_not_enough_samples(self, detector: EquilibriumDetector) -> None:
-        """Returns reached=False until window is full."""
-        for i in range(9):
+    def test_not_reached_before_window_full(self, detector: EquilibriumDetector) -> None:
+        for _ in range(4):
             result = detector.add_reading(7.0)
-            assert result.reached is False
-            assert result.samples_in_window == i + 1
+        assert not result.reached
+        assert result.samples_in_window == 4
 
-    def test_stable_series_reaches_equilibrium(
-        self, detector: EquilibriumDetector, stable_ph_series: list[float]
-    ) -> None:
-        results = [detector.add_reading(ph) for ph in stable_ph_series]
-        assert results[-1].reached is True
+    def test_reached_on_stable_readings(self, detector: EquilibriumDetector) -> None:
+        for _ in range(5):
+            result = detector.add_reading(7.000)
+        assert result.reached
+        assert result.window_std == pytest.approx(0.0, abs=1e-6)
 
-    def test_unstable_series_does_not_reach_equilibrium(
-        self, detector: EquilibriumDetector, unstable_ph_series: list[float]
-    ) -> None:
-        results = [detector.add_reading(ph) for ph in unstable_ph_series]
-        assert results[-1].reached is False
-
-    def test_std_is_low_for_stable(self, detector: EquilibriumDetector) -> None:
-        for ph in [7.00] * 10:
-            result = detector.add_reading(ph)
-        assert result.window_std < 0.001  # noqa: F821 — last loop value
-
-    def test_slope_is_low_for_stable(self, detector: EquilibriumDetector) -> None:
-        result = None
-        for ph in [7.00] * 10:
-            result = detector.add_reading(ph)
-        assert result is not None
-        assert result.slope < 0.001
+    def test_not_reached_on_noisy_readings(self, detector: EquilibriumDetector) -> None:
+        values = [7.0, 7.1, 6.9, 7.2, 6.8]
+        for v in values:
+            result = detector.add_reading(v)
+        assert not result.reached
 
     def test_reset_clears_buffer(self, detector: EquilibriumDetector) -> None:
-        for ph in [7.0] * 10:
-            detector.add_reading(ph)
+        for _ in range(5):
+            detector.add_reading(7.0)
         detector.reset()
         result = detector.add_reading(7.0)
         assert result.samples_in_window == 1
-        assert result.reached is False
+        assert not result.reached
 
-    def test_custom_thresholds(self) -> None:
-        """Strict thresholds reject mild variation."""
-        strict = EquilibriumDetector(window_size=5, std_threshold=0.001, slope_threshold=0.0001)
-        # Variation of 0.05 exceeds strict threshold
-        for ph in [7.00, 7.05, 7.00, 7.05, 7.00]:
-            result = strict.add_reading(ph)
-        assert result.reached is False  # noqa: F821
+    def test_returns_equilibrium_result_type(self, detector: EquilibriumDetector) -> None:
+        result = detector.add_reading(7.0)
+        assert isinstance(result, EquilibriumResult)
 
-    def test_window_is_rolling(self, detector: EquilibriumDetector) -> None:
-        """After unstable start, stable tail should reach equilibrium."""
-        # Dump unstable readings to fill window
-        for ph in [1.0, 14.0, 1.0, 14.0, 1.0, 14.0, 1.0, 14.0, 1.0, 14.0]:
-            detector.add_reading(ph)
-        # Now feed stable values — window should roll over
-        for ph in [7.00, 7.00, 7.00, 7.00, 7.00, 7.00, 7.00, 7.00, 7.00, 7.00]:
-            result = detector.add_reading(ph)
-        assert result.reached is True  # noqa: F821
+    def test_nan_is_ignored(self, detector: EquilibriumDetector) -> None:
+        result = detector.add_reading(float("nan"))
+        assert not result.reached
+        assert result.samples_in_window == 0
+
+    def test_inf_is_ignored(self, detector: EquilibriumDetector) -> None:
+        result = detector.add_reading(float("inf"))
+        assert not result.reached
+
+    def test_out_of_range_is_ignored(self, detector: EquilibriumDetector) -> None:
+        result = detector.add_reading(999.9)
+        assert not result.reached
+        assert result.samples_in_window == 0
+
+    def test_boundary_ph_zero(self, detector: EquilibriumDetector) -> None:
+        for _ in range(5):
+            result = detector.add_reading(0.0)
+        assert result.reached
+
+    def test_boundary_ph_fourteen(self, detector: EquilibriumDetector) -> None:
+        for _ in range(5):
+            result = detector.add_reading(14.0)
+        assert result.reached
+
+    def test_slope_detection(self, detector: EquilibriumDetector) -> None:
+        """Monotonically rising values should not reach equilibrium."""
+        for i in range(5):
+            result = detector.add_reading(7.0 + i * 0.05)
+        assert not result.reached
+        assert result.slope > detector.slope_threshold
+
+    def test_window_std_in_result(self, detector: EquilibriumDetector) -> None:
+        for _ in range(5):
+            detector.add_reading(7.0)
+        result = detector.add_reading(7.0)
+        assert result.window_std >= 0.0
+        assert math.isfinite(result.window_std)

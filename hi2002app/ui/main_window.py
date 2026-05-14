@@ -140,11 +140,14 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, self.tr("Export"), self.tr("No data to export."))
             return
 
-        path_str, chosen_filter = QFileDialog.getSaveFileName(
+        path_str, _ = QFileDialog.getSaveFileName(
             self,
             self.tr("Export Data"),
             "",
-            self.tr("CSV (*.csv);;Excel (*.xlsx);;JSON (*.json);;Markdown (*.md);;PDF (*.pdf)"),
+            self.tr(
+                "CSV (*.csv);;Excel (*.xlsx);;JSON (*.json);;"
+                "Markdown (*.md);;PDF (*.pdf)"
+            ),
         )
         if not path_str:
             return

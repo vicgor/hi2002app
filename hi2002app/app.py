@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import platform
 import sys
 from pathlib import Path
 
@@ -15,12 +16,22 @@ from hi2002app.ui.main_window import MainWindow
 logger = logging.getLogger(__name__)
 
 
+def _get_log_dir() -> Path:
+    """Return platform-appropriate log directory."""
+    if platform.system() == "Windows":
+        base = Path.home() / "AppData" / "Local"
+    elif platform.system() == "Darwin":
+        base = Path.home() / "Library" / "Logs"
+    else:  # Linux / CI
+        base = Path.home() / ".local" / "share"
+    log_dir = base / "HI2002App" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir
+
+
 def _setup_logging() -> None:
     """Configure file + console logging."""
-    log_dir = Path.home() / "AppData" / "Local" / "HI2002App" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "hi2002app.log"
-
+    log_file = _get_log_dir() / "hi2002app.log"
     logging.basicConfig(
         level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -33,6 +44,8 @@ def _setup_logging() -> None:
 
 def _detect_dark_mode() -> bool:
     """Detect Windows dark mode from the registry."""
+    if platform.system() != "Windows":
+        return False
     try:
         import winreg  # type: ignore[import]
 
@@ -41,7 +54,7 @@ def _detect_dark_mode() -> bool:
             r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
         )
         val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-        return val == 0
+        return val == 0  # type: ignore[no-any-return]
     except Exception:  # noqa: BLE001
         return False
 

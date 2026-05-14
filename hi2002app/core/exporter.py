@@ -44,7 +44,7 @@ class DataExporter:
 
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Measurements"  # type: ignore[union-attr]
+        ws.title = "Measurements"
 
         if not measurements:
             wb.save(path)
@@ -55,13 +55,13 @@ class DataExporter:
         header_font = Font(color="FFFFFF", bold=True)
 
         for col, header in enumerate(headers, start=1):
-            cell = ws.cell(row=1, column=col, value=header)  # type: ignore[union-attr]
+            cell = ws.cell(row=1, column=col, value=header)
             cell.fill = header_fill
             cell.font = header_font
 
         for row_idx, m in enumerate(measurements, start=2):
             for col_idx, value in enumerate(m.to_dict().values(), start=1):
-                ws.cell(  # type: ignore[union-attr]
+                ws.cell(
                     row=row_idx,
                     column=col_idx,
                     value=str(value) if isinstance(value, bool) else value,

@@ -30,7 +30,11 @@ logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
-    """Top-level application window."""
+    """Top-level application window.
+
+    Hosts Dashboard and Titration tabs, owns DeviceReader thread
+    and EquilibriumDetector. Persists geometry via QSettings.
+    """
 
     MIN_SIZE: ClassVar[QSize] = QSize(1024, 680)
 
@@ -106,7 +110,7 @@ class MainWindow(QMainWindow):
         """Open serial port and start reading."""
         settings = QSettings()
         port = str(settings.value("device/port", "COM1"))
-        baud = int(settings.value("device/baud", 1200))  # type: ignore[arg-type]
+        baud = int(str(settings.value("device/baud", 1200)))
         self._start_reader(port=port, baud=baud, demo=False)
 
     @Slot()

@@ -47,7 +47,7 @@ def _detect_dark_mode() -> bool:
     if platform.system() != "Windows":
         return False
     try:
-        import winreg as _winreg  # noqa: PLC0415
+        import winreg as _winreg
 
         key = _winreg.OpenKey(
             _winreg.HKEY_CURRENT_USER,
@@ -100,7 +100,8 @@ def create_app(argv: list[str]) -> QApplication:
         app.setWindowIcon(QIcon(str(icon_path)))
 
     settings = QSettings()
-    dark = bool(settings.value("ui/dark_mode", _detect_dark_mode()))
+    raw_dark = settings.value("ui/dark_mode", _detect_dark_mode())
+    dark = raw_dark if isinstance(raw_dark, bool) else str(raw_dark).lower() == "true"
     _load_stylesheet(app, dark)
 
     locale = str(settings.value("ui/language", "en"))

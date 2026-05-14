@@ -128,19 +128,19 @@ class SettingsDialog(QDialog):
         if idx >= 0:
             self._cb_port.setCurrentIndex(idx)
 
-        baud = int(self._settings.value("device/baud", 1200))  # type: ignore[arg-type]
+        baud = int(str(self._settings.value("device/baud", 1200)))
         idx = self._cb_baud.findData(baud)
         if idx >= 0:
             self._cb_baud.setCurrentIndex(idx)
 
         self._sp_window.setValue(
-            int(self._settings.value("equilibrium/window", 10))  # type: ignore[arg-type]
+            int(str(self._settings.value("equilibrium/window", 10)))
         )
         self._dsb_std.setValue(
-            float(self._settings.value("equilibrium/std_threshold", 0.02))  # type: ignore[arg-type]
+            float(str(self._settings.value("equilibrium/std_threshold", 0.02)))
         )
         self._dsb_slope.setValue(
-            float(self._settings.value("equilibrium/slope_threshold", 0.005))  # type: ignore[arg-type]
+            float(str(self._settings.value("equilibrium/slope_threshold", 0.005)))
         )
 
         lang = str(self._settings.value("ui/language", "en"))
@@ -148,7 +148,8 @@ class SettingsDialog(QDialog):
         if idx >= 0:
             self._cb_lang.setCurrentIndex(idx)
 
-        dark = bool(self._settings.value("ui/dark_mode", False))
+        raw_dark = self._settings.value("ui/dark_mode", False)
+        dark = raw_dark if isinstance(raw_dark, bool) else str(raw_dark).lower() == "true"
         self._chk_dark.setChecked(dark)
 
     def _save_and_accept(self) -> None:

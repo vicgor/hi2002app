@@ -6,12 +6,16 @@ import logging
 import platform
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSettings, Qt, QTranslator
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from hi2002app.ui.main_window import MainWindow
+
+if TYPE_CHECKING:
+    import winreg
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +26,7 @@ def _get_log_dir() -> Path:
         base = Path.home() / "AppData" / "Local"
     elif platform.system() == "Darwin":
         base = Path.home() / "Library" / "Logs"
-    else:  # Linux / CI
+    else:
         base = Path.home() / ".local" / "share"
     log_dir = base / "HI2002App" / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -47,13 +51,13 @@ def _detect_dark_mode() -> bool:
     if platform.system() != "Windows":
         return False
     try:
-        import winreg  # type: ignore[import]
+        import winreg as _winreg
 
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
+        key = _winreg.OpenKey(
+            _winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
         )
-        val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
+        val, _ = _winreg.QueryValueEx(key, "AppsUseLightTheme")
         return val == 0  # type: ignore[no-any-return]
     except Exception:  # noqa: BLE001
         return False
@@ -100,10 +104,10 @@ def create_app(argv: list[str]) -> QApplication:
         app.setWindowIcon(QIcon(str(icon_path)))
 
     settings = QSettings()
-    dark = settings.value("ui/dark_mode", _detect_dark_mode(), type=bool)  # type: ignore[call-overload]
+    dark = bool(settings.value("ui/dark_mode", _detect_dark_mode()))
     _load_stylesheet(app, dark)
 
-    locale: str = settings.value("ui/language", "en", type=str)  # type: ignore[call-overload]
+    locale = str(settings.value("ui/language", "en"))
     _install_translator(app, locale)
 
     window = MainWindow(dark_mode=dark)

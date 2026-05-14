@@ -105,8 +105,8 @@ class MainWindow(QMainWindow):
     def _on_connect(self) -> None:
         """Open serial port and start reading."""
         settings = QSettings()
-        port: str = settings.value("device/port", "COM1", type=str)  # type: ignore[call-overload]
-        baud: int = settings.value("device/baud", 1200, type=int)  # type: ignore[call-overload]
+        port = str(settings.value("device/port", "COM1"))
+        baud = int(settings.value("device/baud", 1200))  # type: ignore[arg-type]
         self._start_reader(port=port, baud=baud, demo=False)
 
     @Slot()
@@ -144,7 +144,10 @@ class MainWindow(QMainWindow):
             self,
             self.tr("Export Data"),
             "",
-            self.tr("CSV (*.csv);;Excel (*.xlsx);;JSON (*.json);;Markdown (*.md);;PDF (*.pdf)"),
+            self.tr(
+                "CSV (*.csv);;Excel (*.xlsx);;JSON (*.json);;"
+                "Markdown (*.md);;PDF (*.pdf)"
+            ),
         )
         if not path_str:
             return

@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSpinBox,
     QVBoxLayout,
+    QWidget,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ class SettingsDialog(QDialog):
     - Appearance: language, dark/light theme.
     """
 
-    def __init__(self, parent: QDialog | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialise the settings dialog."""
         super().__init__(parent)
         self.setWindowTitle(self.tr("Settings"))
@@ -122,32 +123,32 @@ class SettingsDialog(QDialog):
 
     def _load_values(self) -> None:
         """Load current QSettings values into widgets."""
-        port: str = self._settings.value("device/port", "COM1", type=str)  # type: ignore[call-overload]
+        port = str(self._settings.value("device/port", "COM1"))
         idx = self._cb_port.findData(port)
         if idx >= 0:
             self._cb_port.setCurrentIndex(idx)
 
-        baud: int = self._settings.value("device/baud", 1200, type=int)  # type: ignore[call-overload]
+        baud = int(self._settings.value("device/baud", 1200))  # type: ignore[arg-type]
         idx = self._cb_baud.findData(baud)
         if idx >= 0:
             self._cb_baud.setCurrentIndex(idx)
 
         self._sp_window.setValue(
-            self._settings.value("equilibrium/window", 10, type=int)  # type: ignore[call-overload]
+            int(self._settings.value("equilibrium/window", 10))  # type: ignore[arg-type]
         )
         self._dsb_std.setValue(
-            self._settings.value("equilibrium/std_threshold", 0.02, type=float)  # type: ignore[call-overload]
+            float(self._settings.value("equilibrium/std_threshold", 0.02))  # type: ignore[arg-type]
         )
         self._dsb_slope.setValue(
-            self._settings.value("equilibrium/slope_threshold", 0.005, type=float)  # type: ignore[call-overload]
+            float(self._settings.value("equilibrium/slope_threshold", 0.005))  # type: ignore[arg-type]
         )
 
-        lang: str = self._settings.value("ui/language", "en", type=str)  # type: ignore[call-overload]
+        lang = str(self._settings.value("ui/language", "en"))
         idx = self._cb_lang.findData(lang)
         if idx >= 0:
             self._cb_lang.setCurrentIndex(idx)
 
-        dark: bool = self._settings.value("ui/dark_mode", False, type=bool)  # type: ignore[call-overload]
+        dark = bool(self._settings.value("ui/dark_mode", False))
         self._chk_dark.setChecked(dark)
 
     def _save_and_accept(self) -> None:

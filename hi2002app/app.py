@@ -6,7 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, QTranslator, Qt
+from PySide6.QtCore import QSettings, Qt, QTranslator
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
@@ -35,6 +35,7 @@ def _detect_dark_mode() -> bool:
     """Detect Windows dark mode from the registry."""
     try:
         import winreg  # type: ignore[import]
+
         key = winreg.OpenKey(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
@@ -72,7 +73,6 @@ def create_app(argv: list[str]) -> QApplication:
     """Create and configure QApplication, return it (caller calls .exec())."""
     _setup_logging()
 
-    # HiDPI
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
@@ -86,12 +86,10 @@ def create_app(argv: list[str]) -> QApplication:
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))
 
-    # Theme
     settings = QSettings()
     dark = settings.value("ui/dark_mode", _detect_dark_mode(), type=bool)  # type: ignore[call-overload]
     _load_stylesheet(app, dark)
 
-    # Language
     locale: str = settings.value("ui/language", "en", type=str)  # type: ignore[call-overload]
     _install_translator(app, locale)
 

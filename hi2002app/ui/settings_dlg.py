@@ -133,12 +133,8 @@ class SettingsDialog(QDialog):
         if idx >= 0:
             self._cb_baud.setCurrentIndex(idx)
 
-        self._sp_window.setValue(
-            int(str(self._settings.value("equilibrium/window", 10)))
-        )
-        self._dsb_std.setValue(
-            float(str(self._settings.value("equilibrium/std_threshold", 0.02)))
-        )
+        self._sp_window.setValue(int(str(self._settings.value("equilibrium/window", 10))))
+        self._dsb_std.setValue(float(str(self._settings.value("equilibrium/std_threshold", 0.02))))
         self._dsb_slope.setValue(
             float(str(self._settings.value("equilibrium/slope_threshold", 0.005)))
         )

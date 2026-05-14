@@ -47,13 +47,13 @@ def _detect_dark_mode() -> bool:
     if platform.system() != "Windows":
         return False
     try:
-        import winreg as _winreg
+        import winreg  # type: ignore[import-not-found]
 
-        key = _winreg.OpenKey(
-            _winreg.HKEY_CURRENT_USER,
+        key = winreg.OpenKey(  # type: ignore[attr-defined]
+            winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
             r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
         )
-        val, _ = _winreg.QueryValueEx(key, "AppsUseLightTheme")
+        val, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")  # type: ignore[attr-defined]
         return val == 0  # type: ignore[no-any-return]
     except Exception:  # noqa: BLE001
         return False

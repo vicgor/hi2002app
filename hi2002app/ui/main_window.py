@@ -144,10 +144,7 @@ class MainWindow(QMainWindow):
             self,
             self.tr("Export Data"),
             "",
-            self.tr(
-                "CSV (*.csv);;Excel (*.xlsx);;JSON (*.json);;"
-                "Markdown (*.md);;PDF (*.pdf)"
-            ),
+            self.tr("CSV (*.csv);;Excel (*.xlsx);;JSON (*.json);;Markdown (*.md);;PDF (*.pdf)"),
         )
         if not path_str:
             return

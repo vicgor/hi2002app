@@ -18,3 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HiDPI / 4K support
 - CI pipeline (ruff, mypy, pytest) via GitHub Actions
 - Auto-build `.exe` via PyInstaller on `v*.*.*` tag
+

@@ -25,51 +25,6 @@ jobs:
           pip install -e ".[dev]"
           pip install pillow
 
-      - name: Generate app.ico
-        shell: python
-        run: |
-          import io, struct
-          from pathlib import Path
-          from PIL import Image, ImageDraw, ImageFont
-
-          def make_frame(size):
-              img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-              draw = ImageDraw.Draw(img)
-              m = max(size // 10, 1)
-              draw.ellipse([m, m, size - m, size - m], fill=(31, 78, 121, 255))
-              text = "pH"
-              fs = max(int(size * 0.35), 6)
-              try:
-                  font = ImageFont.load_default(size=fs)
-              except Exception:
-                  font = ImageFont.load_default()
-              bbox = draw.textbbox((0, 0), text, font=font)
-              tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-              draw.text(((size - tw) // 2, (size - th) // 2), text,
-                        fill=(255, 255, 255, 255), font=font)
-              return img
-
-          def build_ico(sizes):
-              pngs = []
-              for s in sizes:
-                  buf = io.BytesIO()
-                  make_frame(s).save(buf, format="PNG")
-                  pngs.append(buf.getvalue())
-              n = len(sizes)
-              header = struct.pack("<HHH", 0, 1, n)
-              offset = 6 + n * 16
-              dirs = b""
-              for s, png in zip(sizes, pngs):
-                  w = s if s < 256 else 0
-                  dirs += struct.pack("<BBBBHHII", w, w, 0, 0, 1, 32, len(png), offset)
-                  offset += len(png)
-              return header + dirs + b"".join(pngs)
-
-          out = Path("hi2002app/resources/icons")
-          out.mkdir(parents=True, exist_ok=True)
-          (out / "app.ico").write_bytes(build_ico([16, 32, 48, 64, 128, 256]))
-          print("app.ico generated")
-
       - name: Extract version from tag
         id: version
         shell: bash

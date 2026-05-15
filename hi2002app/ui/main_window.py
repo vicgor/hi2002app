@@ -7,8 +7,9 @@ from pathlib import Path
 from typing import ClassVar
 
 from PySide6.QtCore import QSettings, QSize, Slot
-from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtGui import QAction, QCloseEvent, QScreen
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QLabel,
     QMainWindow,
@@ -234,14 +235,48 @@ class MainWindow(QMainWindow):
         self._act_disconnect.setEnabled(False)
 
     def _restore_geometry(self) -> None:
-        """Restore saved window position and size."""
+        """Restore saved window geometry, falling back to centred if off-screen.
+
+        A previously saved geometry may place the window on a monitor that is
+        no longer connected. After restoring we check that the window frame
+        intersects at least one available screen; if not, we move it to the
+        centre of the primary screen so it is always visible.
+        """
         settings = QSettings()
         geo = settings.value("window/geometry")
+        restored = False
         if geo:
-            self.restoreGeometry(geo)  # type: ignore[arg-type]
+            restored = self.restoreGeometry(geo)  # type: ignore[arg-type]
+
         state = settings.value("window/state")
         if state:
             self.restoreState(state)  # type: ignore[arg-type]
+
+        if restored:
+            frame = self.frameGeometry()
+            on_screen = any(
+                not frame.intersected(screen.availableGeometry()).isEmpty()
+                for screen in QApplication.screens()
+            )
+            if not on_screen:
+                logger.warning(
+                    "Saved geometry is off-screen (%s) — centering on primary screen", frame
+                )
+                self._center_on_primary()
+        else:
+            self._center_on_primary()
+
+    def _center_on_primary(self) -> None:
+        """Move and resize window to a sensible default on the primary screen."""
+        screen: QScreen | None = QApplication.primaryScreen()
+        if screen is None:
+            return
+        available = screen.availableGeometry()
+        self.resize(self.MIN_SIZE)
+        frame = self.frameGeometry()
+        frame.moveCenter(available.center())
+        self.move(frame.topLeft())
+        logger.debug("Window centred on primary screen at %s", frame.topLeft())
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         """Save geometry and stop device thread before closing."""

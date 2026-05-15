@@ -17,11 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 def _base_path() -> Path:
-    """Return base resource path — works both in source and PyInstaller bundle."""
-    if hasattr(sys, "_MEIPASS"):
-        # Running inside PyInstaller --onefile bundle
-        return Path(sys._MEIPASS) / "hi2002app"  # type: ignore[attr-defined]
-    # Running from source
+    """Return base resource path — works both in source and PyInstaller bundle.
+
+    In a PyInstaller ``--onefile`` bundle all package data is extracted to
+    ``sys._MEIPASS`` at runtime.  We access that attribute via ``getattr`` so
+    mypy strict mode does not complain about an unknown attribute.
+    """
+    meipass: str | None = getattr(sys, "_MEIPASS", None)
+    if meipass is not None:
+        return Path(meipass) / "hi2002app"
     return Path(__file__).parent
 
 

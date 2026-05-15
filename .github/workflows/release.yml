@@ -28,6 +28,26 @@ jobs:
           pip install -e ".[dev]"
           pip install pillow
 
+      - name: Compile translations (.ts -> .qm)
+        shell: python
+        run: |
+          import subprocess, sys, pathlib
+          # PySide6 ships lrelease as a Python-accessible tool
+          import PySide6
+          pyside_dir = pathlib.Path(PySide6.__file__).parent
+          lrelease = pyside_dir / "lrelease.exe"
+          ts_files = list(pathlib.Path("hi2002app/i18n").glob("*.ts"))
+          if not ts_files:
+              print("No .ts files found", flush=True)
+              sys.exit(1)
+          for ts in ts_files:
+              result = subprocess.run([str(lrelease), str(ts)], capture_output=True, text=True)
+              print(result.stdout)
+              if result.returncode != 0:
+                  print(result.stderr)
+                  sys.exit(result.returncode)
+          print("Translations compiled:", [str(f) for f in ts_files])
+
       - name: Extract version from tag
         id: version
         shell: bash
